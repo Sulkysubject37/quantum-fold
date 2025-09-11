@@ -1,0 +1,198 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.8', '3.9', '3.10']
+        cirq-version: ['1.0.0', '1.1.0']
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install cirq==${{ matrix.cirq-version }}
+        pip install cirq-google~=1.0.dev
+        pip install numpy scipy matplotlib pandas tqdm
+        pip install pytest pytest-cov pytest-xdist
+        pip install coverage codecov
+
+    - name: Run tests with pytest
+      run: |
+        python -m pytest tests/ -v --cov=src --cov-report=xml --cov-report=term
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-python-${{ matrix.python-version }}-cirq-${{ matrix.cirq-version }}
+
+  lint:
+    name: Code Linting
+    runs-on: ubuntu-latest
+    needs: test
+    if: always()
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install linting tools
+      run: |
+        pip install flake8 black isort mypy
+
+    - name: Check code formatting with black
+      run: |
+        black --check src/ tests/
+
+    - name: Check import sorting with isort
+      run: |
+        isort --check-only src/ tests/
+
+    - name: Run flake8 linting
+      run: |
+        flake8 src/ tests/ --max-line-length=88 --ignore=E203,W503
+
+    - name: Run type checking with mypy
+      run: |
+        mypy src/ --ignore-missing-imports
+
+  notebook-test:
+    name: Test Notebook Execution
+    runs-on: ubuntu-latest
+    needs: test
+    if: always()
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install notebook dependencies
+      run: |
+        pip install cirq cirq-google~=1.0.dev numpy scipy
+        pip install jupyter nbconvert
+
+    - name: Test notebook execution
+      run: |
+        python -c "
+        import nbformat
+        from nbconvert import PythonExporter
+        import os
+        
+        # Convert notebook to python and test execution
+        notebook_path = 'notebooks/vqe_protein_folding.ipynb'
+        if os.path.exists(notebook_path):
+            with open(notebook_path, 'r', encoding='utf-8') as f:
+                notebook = nbformat.read(f, as_version=4)
+            
+            exporter = PythonExporter()
+            source, _ = exporter.from_notebook_node(notebook)
+            
+            # Write to temporary file and execute
+            with open('temp_test.py', 'w', encoding='utf-8') as f:
+                f.write(source)
+            
+            # Execute the converted notebook
+            exec(open('temp_test.py').read())
+            print('Notebook executed successfully!')
+        else:
+            print('Notebook not found, skipping test')
+        "
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: test
+    if: always()
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install safety
+      run: |
+        pip install safety
+
+    - name: Run security scan
+      run: |
+        safety check --full-report
+
+  docs-build:
+    name: Build Documentation
+    runs-on: ubuntu-latest
+    needs: test
+    if: always()
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install documentation tools
+      run: |
+        pip install mkdocs mkdocs-material mkdocstrings[python]
+
+    - name: Build documentation
+      run: |
+        mkdocs build --site-dir public --verbose
+
+    - name: Upload documentation artifact
+      uses: actions/upload-pages-artifact@v1
+      with:
+        path: public
+
+  deploy-docs:
+    name: Deploy Documentation
+    runs-on: ubuntu-latest
+    needs: docs-build
+    if: github.ref == 'refs/heads/main'
+
+    permissions:
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v1
