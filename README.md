@@ -25,7 +25,7 @@ A production-grade framework for simulating protein folding on Quantum Computers
 ## Installation
 
 ```bash
-git clone https://github.com/Sulkysubject37/protein-folding-vqe.git
+git clone https://github.com/Sulkysubject37/quantum-fold.git
 cd protein-folding-vqe
 pip install -e .
 ```
