@@ -1,0 +1,20 @@
+site_name: Protein Folding VQE
+theme:
+  name: material
+  palette:
+    primary: teal
+    accent: purple
+  features:
+    - navigation.tabs
+
+plugins:
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+
+nav:
+  - Home: index.md
+  - User Guide: user-guide.md
+  - Physics & Math: physics.md
+  - API Reference: reference.md

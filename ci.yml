@@ -33,10 +33,11 @@ jobs:
         pip install numpy scipy matplotlib pandas tqdm
         pip install pytest pytest-cov pytest-xdist
         pip install coverage codecov
+        pip install -e .
 
     - name: Run tests with pytest
       run: |
-        python -m pytest tests/ -v --cov=src --cov-report=xml --cov-report=term
+        python -m pytest protein-folding-vqe/tests/ -v --cov=src --cov-report=xml --cov-report=term
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
