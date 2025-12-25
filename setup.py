@@ -11,5 +11,10 @@ setup(
         "numpy>=1.21.0",
         "scipy>=1.7.0",
     ],
+    entry_points={
+        "console_scripts": [
+            "protein-vqe=protein_folding_vqe.cli:main",
+        ],
+    },
     python_requires=">=3.8",
 )

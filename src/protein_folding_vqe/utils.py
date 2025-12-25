@@ -114,8 +114,13 @@ def save_results(results: Dict[str, Any], filename: str, format: str = 'json') -
         for key, value in results.items():
             if isinstance(value, np.ndarray):
                 json_results[key] = value.tolist()
-            elif isinstance(value, (np.integer, np.floating)):
+            elif isinstance(value, (np.integer, int)):
+                json_results[key] = int(value)
+            elif isinstance(value, (np.floating, float)):
                 json_results[key] = float(value)
+            elif isinstance(value, list):
+                 # Handle list of numpy types
+                 json_results[key] = [int(x) if isinstance(x, (np.integer, int)) else float(x) if isinstance(x, (np.floating, float)) else x for x in value]
             else:
                 json_results[key] = value
         
